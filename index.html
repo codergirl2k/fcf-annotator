@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>FCF Frame Annotator — PBMED 210 Group 2</title>
+<title>FCF Frame Annotator </title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@400;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,6 +17,9 @@
   .header-title { font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: -0.5px; color: var(--accent2); }
   .header-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
   .badge { background: var(--border); border: 1px solid var(--accent); color: var(--accent2); font-size: 10px; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; }
+  .browser-notice { background: #2a1a00; border-bottom: 1px solid #f0c06044; padding: 8px 24px; font-size: 11px; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+  .browser-notice.hidden { display: none; }
+  .notice-close { margin-left: auto; cursor: pointer; opacity: 0.6; font-size: 14px; }
   .main { display: grid; grid-template-columns: 1fr 280px; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
   .video-area { display: flex; flex-direction: column; padding: 16px; gap: 12px; overflow: hidden; }
   .dropzone { border: 2px dashed var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s; background: var(--surface); flex: 1; min-height: 200px; }
@@ -77,6 +80,10 @@
     <div class="header-sub">First Contact Frame · Manual Labeling Tool</div>
   </div>
   <div class="badge">PBMED 210 · GROUP 2</div>
+</div>
+<div class="browser-notice" id="browserNotice">
+  ⚠️ <strong>.MOV files require Safari on Mac.</strong> Chrome and Firefox may show a black screen — open this page in Safari for best results. MP4 files work in all browsers.
+  <span class="notice-close" onclick="document.getElementById('browserNotice').classList.add('hidden')">✕</span>
 </div>
 <div class="main">
   <div class="video-area">
