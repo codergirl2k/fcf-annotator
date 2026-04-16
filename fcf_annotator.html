@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FCF Frame Annotator — PBMED 210 Group 2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@400;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+    --accent: #7c5cbf; --accent2: #c084fc; --gold: #f0c060;
+    --green: #4ade80; --red: #f87171; --text: #e2e8f0; --muted: #64748b;
+    --mono: 'JetBrains Mono', monospace; --display: 'Syne', sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+  .header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .header-title { font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: -0.5px; color: var(--accent2); }
+  .header-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .badge { background: var(--border); border: 1px solid var(--accent); color: var(--accent2); font-size: 10px; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; }
+  .main { display: grid; grid-template-columns: 1fr 280px; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+  .video-area { display: flex; flex-direction: column; padding: 16px; gap: 12px; overflow: hidden; }
+  .dropzone { border: 2px dashed var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s; background: var(--surface); flex: 1; min-height: 200px; }
+  .dropzone:hover, .dropzone.drag-over { border-color: var(--accent); background: #1a1a2e; }
+  .dropzone-icon { font-size: 36px; opacity: 0.4; }
+  .dropzone-text { font-size: 13px; color: var(--muted); }
+  .dropzone-sub { font-size: 10px; color: var(--muted); opacity: 0.6; }
+  .player-container { display: none; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
+  .player-container.active { display: flex; }
+  .video-wrapper { flex: 1; background: #000; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; }
+  video { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .frame-overlay { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.75); border: 1px solid var(--accent); border-radius: 4px; padding: 4px 10px; font-size: 12px; color: var(--accent2); font-family: var(--mono); }
+  .mark-flash { position: absolute; inset: 0; border: 3px solid var(--green); border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+  .mark-flash.show { opacity: 1; }
+  .scrubber-area { display: flex; flex-direction: column; gap: 6px; }
+  .scrubber-row { display: flex; align-items: center; gap: 10px; }
+  input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent2); border-radius: 50%; cursor: pointer; }
+  .frame-count { font-size: 11px; color: var(--muted); white-space: nowrap; min-width: 80px; text-align: right; }
+  .controls-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .key-hint { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+  kbd { background: var(--border); border: 1px solid #333; border-radius: 3px; padding: 1px 5px; font-size: 10px; color: var(--text); font-family: var(--mono); }
+  .mark-btn { margin-left: auto; background: var(--green); color: #000; border: none; border-radius: 4px; padding: 6px 16px; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; letter-spacing: 1px; transition: opacity 0.15s; }
+  .mark-btn:hover { opacity: 0.85; }
+  .filename-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px; font-size: 11px; display: flex; align-items: center; justify-content: space-between; }
+  .filename-name { color: var(--accent2); }
+  .filename-progress { color: var(--muted); font-size: 10px; }
+  .sidebar { border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+  .sidebar-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .result-count { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 10px; }
+  .results-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .results-list::-webkit-scrollbar { width: 4px; }
+  .results-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .result-item { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; transition: border-color 0.15s; cursor: pointer; }
+  .result-item.current { border-color: var(--accent); }
+  .result-item.done { border-color: var(--green); }
+  .result-name { font-size: 10px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .result-frame { font-size: 11px; color: var(--gold); font-weight: 600; }
+  .result-pending { font-size: 10px; color: var(--muted); font-style: italic; }
+  .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .export-btn { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 9px; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; letter-spacing: 1px; transition: opacity 0.15s; }
+  .export-btn:hover { opacity: 0.85; }
+  .export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .skip-btn { width: 100%; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 7px; font-family: var(--mono); font-size: 10px; cursor: pointer; transition: all 0.15s; }
+  .skip-btn:hover { border-color: var(--muted); color: var(--text); }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--muted); font-size: 11px; padding: 20px; text-align: center; }
+  .empty-icon { font-size: 28px; opacity: 0.3; }
+  .fps-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+  .fps-input { width: 60px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; outline: none; }
+  .fps-input:focus { border-color: var(--accent); }
+  .time-display { color: var(--gold); font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-title">FCF Frame Annotator</div>
+    <div class="header-sub">First Contact Frame · Manual Labeling Tool</div>
+  </div>
+  <div class="badge">PBMED 210 · GROUP 2</div>
+</div>
+<div class="main">
+  <div class="video-area">
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">🎬</div>
+      <div class="dropzone-text">Drop video files here</div>
+      <div class="dropzone-sub">or click to select one or more files</div>
+      <input type="file" id="fileInput" accept="video/*" multiple style="display:none">
+    </div>
+    <div class="player-container" id="playerContainer">
+      <div class="filename-bar">
+        <span class="filename-name" id="filenameDisplay">—</span>
+        <span class="filename-progress" id="progressDisplay">—</span>
+      </div>
+      <div class="video-wrapper">
+        <video id="video" preload="auto"></video>
+        <div class="frame-overlay" id="frameOverlay">Frame: 0</div>
+        <div class="mark-flash" id="markFlash"></div>
+      </div>
+      <div class="scrubber-area">
+        <div class="scrubber-row">
+          <input type="range" id="scrubber" min="0" max="100" value="0" step="1">
+          <span class="frame-count" id="frameCount">0 / 0</span>
+        </div>
+        <div class="fps-row">
+          <span>Camera FPS:</span>
+          <input type="number" class="fps-input" id="fpsInput" value="30" min="1" max="240">
+          <span class="time-display" id="timeDisplay">0.000s</span>
+        </div>
+      </div>
+      <div class="controls-row">
+        <span class="key-hint"><kbd>k</kbd> -100</span>
+        <span class="key-hint"><kbd>m</kbd> -10</span>
+        <span class="key-hint"><kbd>,</kbd> -1</span>
+        <span class="key-hint"><kbd>.</kbd> +1</span>
+        <span class="key-hint"><kbd>/</kbd> +10</span>
+        <span class="key-hint"><kbd>;</kbd> +100</span>
+        <button class="mark-btn" id="markBtn">⏺ MARK FRAME [Space]</button>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>Annotations</span>
+      <span class="result-count" id="resultCount">0</span>
+    </div>
+    <div class="results-list" id="resultsList">
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <span>Load videos to begin annotating</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="export-btn" id="exportBtn" disabled>⬇ Export CSV</button>
+      <button class="skip-btn" id="skipBtn" style="display:none">Skip this video →</button>
+    </div>
+  </div>
+</div>
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const playerContainer = document.getElementById('playerContainer');
+  const video = document.getElementById('video');
+  const scrubber = document.getElementById('scrubber');
+  const frameOverlay = document.getElementById('frameOverlay');
+  const frameCount = document.getElementById('frameCount');
+  const markFlash = document.getElementById('markFlash');
+  const markBtn = document.getElementById('markBtn');
+  const skipBtn = document.getElementById('skipBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const resultsList = document.getElementById('resultsList');
+  const resultCount = document.getElementById('resultCount');
+  const filenameDisplay = document.getElementById('filenameDisplay');
+  const progressDisplay = document.getElementById('progressDisplay');
+  const fpsInput = document.getElementById('fpsInput');
+  const timeDisplay = document.getElementById('timeDisplay');
+
+  let files = [], currentIndex = 0, currentFrame = 0, totalFrames = 0, fps = 30, annotations = [], isLoaded = false;
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag-over'); loadFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'))); });
+  fileInput.addEventListener('change', () => loadFiles(Array.from(fileInput.files)));
+
+  function loadFiles(newFiles) {
+    if (!newFiles.length) return;
+    files = newFiles;
+    annotations = files.map(f => ({ name: f.name, frame: null }));
+    currentIndex = 0;
+    renderSidebar();
+    loadVideo(0);
+  }
+
+  function loadVideo(idx) {
+    if (idx >= files.length) return;
+    currentIndex = idx;
+    isLoaded = false;
+    const url = URL.createObjectURL(files[idx]);
+    video.src = url;
+    video.load();
+    filenameDisplay.textContent = files[idx].name;
+    progressDisplay.textContent = `${idx + 1} / ${files.length}`;
+    dropzone.style.display = 'none';
+    playerContainer.classList.add('active');
+    skipBtn.style.display = 'block';
+    video.addEventListener('loadedmetadata', () => {
+      fps = parseFloat(fpsInput.value) || 30;
+      totalFrames = Math.floor(video.duration * fps);
+      scrubber.max = totalFrames;
+      currentFrame = 0;
+      scrubber.value = 0;
+      updateFrameDisplay();
+      isLoaded = true;
+      video.pause();
+      seekToFrame(0);
+    }, { once: true });
+    renderSidebar();
+  }
+
+  function seekToFrame(f) {
+    f = Math.max(0, Math.min(f, totalFrames - 1));
+    currentFrame = f;
+    fps = parseFloat(fpsInput.value) || 30;
+    video.currentTime = f / fps;
+    scrubber.value = f;
+    updateFrameDisplay();
+  }
+
+  function updateFrameDisplay() {
+    fps = parseFloat(fpsInput.value) || 30;
+    frameOverlay.textContent = `Frame: ${currentFrame}`;
+    frameCount.textContent = `${currentFrame} / ${totalFrames}`;
+    timeDisplay.textContent = `${(currentFrame / fps).toFixed(3)}s`;
+  }
+
+  scrubber.addEventListener('input', () => { if (isLoaded) seekToFrame(parseInt(scrubber.value)); });
+  fpsInput.addEventListener('change', () => { fps = parseFloat(fpsInput.value) || 30; totalFrames = Math.floor(video.duration * fps); scrubber.max = totalFrames; updateFrameDisplay(); });
+
+  function markFrame() {
+    if (!isLoaded) return;
+    annotations[currentIndex].frame = currentFrame;
+    markFlash.classList.add('show');
+    setTimeout(() => markFlash.classList.remove('show'), 200);
+    renderSidebar();
+    exportBtn.disabled = false;
+    const next = annotations.findIndex((a, i) => i > currentIndex && a.frame === null);
+    if (next !== -1) setTimeout(() => loadVideo(next), 300);
+    else if (!annotations.some(a => a.frame === null)) progressDisplay.textContent = '✓ All annotated!';
+  }
+
+  markBtn.addEventListener('click', markFrame);
+  skipBtn.addEventListener('click', () => { if (currentIndex + 1 < files.length) loadVideo(currentIndex + 1); });
+
+  document.addEventListener('keydown', e => {
+    if (!isLoaded || e.target === fpsInput) return;
+    switch(e.key) {
+      case ' ': e.preventDefault(); markFrame(); break;
+      case 'k': seekToFrame(currentFrame - 100); break;
+      case 'm': seekToFrame(currentFrame - 10); break;
+      case ',': seekToFrame(currentFrame - 1); break;
+      case '.': seekToFrame(currentFrame + 1); break;
+      case '/': seekToFrame(currentFrame + 10); break;
+      case ';': seekToFrame(currentFrame + 100); break;
+      case 'ArrowLeft': seekToFrame(currentFrame - 1); break;
+      case 'ArrowRight': seekToFrame(currentFrame + 1); break;
+    }
+  });
+
+  function renderSidebar() {
+    if (!files.length) return;
+    const marked = annotations.filter(a => a.frame !== null).length;
+    resultCount.textContent = `${marked}/${files.length}`;
+    resultsList.innerHTML = '';
+    annotations.forEach((ann, i) => {
+      const item = document.createElement('div');
+      item.className = 'result-item' + (i === currentIndex ? ' current' : '') + (ann.frame !== null ? ' done' : '');
+      const nameEl = document.createElement('div');
+      nameEl.className = 'result-name';
+      nameEl.title = ann.name;
+      nameEl.textContent = ann.name;
+      item.appendChild(nameEl);
+      if (ann.frame !== null) {
+        const frameEl = document.createElement('div');
+        frameEl.className = 'result-frame';
+        frameEl.textContent = `Frame ${ann.frame}`;
+        item.appendChild(frameEl);
+      } else {
+        const pendingEl = document.createElement('div');
+        pendingEl.className = 'result-pending';
+        pendingEl.textContent = i === currentIndex ? 'annotating...' : 'pending';
+        item.appendChild(pendingEl);
+      }
+      item.addEventListener('click', () => loadVideo(i));
+      resultsList.appendChild(item);
+    });
+    exportBtn.disabled = marked === 0;
+  }
+
+  exportBtn.addEventListener('click', () => {
+    const rows = ['video_name,fcf_frame'];
+    annotations.forEach(a => { if (a.frame !== null) rows.push(`${a.name},${a.frame}`); });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fcf_ground_truth.csv';
+    a.click();
+  });
+</script>
+</body>
+</html>
